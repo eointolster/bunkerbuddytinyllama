@@ -19,3 +19,5 @@ ollama run tinyllama
 
 DONE.
 A fully local chatbot that now runs without internet. More to come and better use cases. 
+
+https://www.youtube.com/watch?v=jQfRyDeT398&t=12s&ab_channel=EoinTolster
