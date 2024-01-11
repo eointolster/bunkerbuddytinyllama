@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Interface</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Changed to min-height */
+            background: #ecf0f1;
+        }
+        #model-selection {
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            background-color: #f2f2f2;
+        }
+        #messages {
+            flex-grow: 1;
+            overflow: auto;
+            border: 1px solid #ccc;
+            margin: 10px;
+            padding: 5px;
+            margin-bottom: 80px; /* Add bottom margin to avoid overlap */
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #f2f2f2;
+            position: fixed; /* Position fixed to keep it always in view */
+            bottom: 0; /* Align to bottom */
+            left: 0;
+            right: 0;
+            padding-bottom: 20px;
+        }
+        #input {
+            flex-grow: 1;
+            margin-right: 10px;
+            height: 60px; /* Increase height for better visibility */
+            font-size: 1.2em;
+        }
+        #send {
+            font-size: 1.2em; /* Larger font size for consistency */
+        }
+        #welcome-message {
+            position: fixed;
+            top: 40%; /* Raise the position slightly */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 40px; /* Increased padding */
+            z-index: 10;
+            transition: opacity 1s ease-out;
+        }
+        #welcome-message p {
+            font-size: 1em;
+            margin: 0.5em 0;
+            font-weight: bold; /* Bold text */
+        }
+        #welcome-message p a {
+            font-size: 1.2em; /* Larger font size for YouTube link */
+            color: #3498db; /* Style link color */
+            text-decoration: none; /* Remove underline */
+        }
+        #welcome-message p a:hover {
+            text-decoration: underline; /* Underline on hover */
+        }
+    </style>
+</head>
+<body>
+    <div id="model-selection">
+        <button onclick="selectModel('tinyllama:latest')">Tinyllama</button>
+        <!-- Removed LLava button -->
+    </div>
+    <!-- Removed LLava specific elements like image input -->
+    
+    <div id="welcome-message">
+        <p>Thank you for visiting!</p>
+        <p>Check out my YouTube channel: <a href="http://www.youtube.com/@Engomonster" target="_blank">www.youtube.com/@Engomonster</a></p>
+        <p>Also, visit <a href="http://www.bunkerdox.com" target="_blank">www.bunkerdox.com</a>, the embeddings marketplace of the future.</p>
+        <p>My linkedin www.linkedin.com/in/eoin-tolster-2290b6221</p>
+        <p>Knowledgebase and document management evolved. BUNKERDOX transforms your documents into vector databases, enabling rapid content interrogation via direct search or chat. Use your large language model with your documents and know the results you see is the content you have.</p>
+    </div>
+
+    <div id="messages"></div>
+    <div id="input-area">
+        <input type="text" id="input" placeholder="Type a message..." oninput="resetTyping()">
+        <button id="send">Send</button>
+    </div>
+
+    <script>
+        // JavaScript with LLava specific code removed
+        const messages = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const sendButton = document.getElementById('send');
+        let currentModel = 'tinyllama:latest'; // Default model
+        let conversationHistory = [];
+
+        let messageReceived = false;
+
+        // Call this function whenever the input is modified
+        function resetTyping() {
+            if(messageReceived) {
+                messageReceived = false; // Reset the flag
+                window.location.reload(true); // Force reload without cache
+            }
+        }
+
+
+
+        function hideWelcomeMessage() {
+        var welcomeMessage = document.getElementById('welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.style.opacity = '0';
+            // Remove the element after the transition ends
+            welcomeMessage.addEventListener('transitionend', function() {
+                // Check if the welcomeMessage is still part of the DOM
+                if(welcomeMessage.parentNode) {
+                    welcomeMessage.parentNode.removeChild(welcomeMessage);
+                }
+            });
+            messageReceived = true;
+        }
+    }
+
+    function handleServerResponse(responseText) {
+            // Assume the response is plain text and split it into sentences
+            const sentences = responseText.split('\n').filter(line => !line.startsWith('AI:')); // Filter out lines that start with 'AI:'
+            sentences.forEach(sentence => {
+                if (sentence.trim().length > 0) { // Only add non-empty sentences
+                    updateMessages(sentence.trim(), false);
+                }
+            });
+        }
+
+        function updateMessages(text, isUser = true) {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = isUser ? `You: ${text}` : `${text}`; // Removed 'Server:' prefix
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
+        }
+
+        function selectModel(model) {
+            currentModel = model;
+            updateMessages(`Model switched to ${model}`, false);
+            conversationHistory = []; // Reset conversation history when model changes
+        }
+
+        function sendMessage() {
+            const prompt = input.value;
+            input.value = '';
+
+            // Hide welcome message if visible
+            if (document.getElementById('welcome-message')) {
+                hideWelcomeMessage();
+            }
+            conversationHistory.push(prompt); // Add the prompt to the conversation history
+            const fullPrompt = conversationHistory.join("\n"); // Create the full prompt text
+
+            console.log("Sending Prompt:", fullPrompt);
+
+            // Prepare the data object for the POST request
+            const data = {
+                model: currentModel,
+                stream: false,
+                prompt: fullPrompt
+            };
+
+            console.log("Request Payload:", data);
+
+            // Make the POST request to the server
+            fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Server Response:", data);
+                handleServerResponse(data.response); // Handle and display the server response
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateMessages("Failed to get a response from the server: " + error.message, false);
+            });
+
+            updateMessages(prompt); // Display the user's prompt in the chat
+        }
+
+        window.onload = () => {
+            selectModel('tinyllama:latest'); // Select the default model
+        };
+
+
+
+
+        sendButton.addEventListener('click', sendMessage);
+    </script>
+</body>
+</html>
