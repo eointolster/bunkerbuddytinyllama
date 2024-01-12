@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Interface</title>
+</head>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh; /* Changed to min-height */
+        background: #ecf0f1;
+    }
+    #model-selection {
+        display: flex;
+        justify-content: center;
+        padding: 10px;
+        background-color: #f2f2f2;
+    }
+    #messages {
+        flex-grow: 1;
+        overflow: auto;
+        border: 1px solid #ccc;
+        margin: 10px;
+        padding: 5px;
+        margin-bottom: 80px; /* Add bottom margin to avoid overlap */
+    }
+    #input-area {
+        display: flex;
+        padding: 10px;
+        background-color: #f2f2f2;
+        position: fixed; /* Position fixed to keep it always in view */
+        bottom: 0; /* Align to bottom */
+        left: 0;
+        right: 0;
+        padding-bottom: 20px;
+    }
+    #input {
+        flex-grow: 1;
+        margin-right: 10px;
+        height: 60px; /* Increase height for better visibility */
+        font-size: 1.2em;
+    }
+    #send {
+        font-size: 1.2em; /* Larger font size for consistency */
+    }
+    #welcome-message {
+        position: fixed;
+        top: 40%; /* Raise the position slightly */
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 10px;
+        padding: 40px; /* Increased padding */
+        z-index: 10;
+        transition: opacity 1s ease-out;
+    }
+    #welcome-message p {
+        font-size: 1em;
+        margin: 0.5em 0;
+        font-weight: bold; /* Bold text */
+    }
+    #welcome-message p a {
+        font-size: 1.2em; /* Larger font size for YouTube link */
+        color: #3498db; /* Style link color */
+        text-decoration: none; /* Remove underline */
+    }
+    #welcome-message p a:hover {
+        text-decoration: underline; /* Underline on hover */
+    }
+</style>
+<body>
+    <div id="model-selection">
+        <button onclick="selectModel('tinyllama:latest')">Tinyllama</button>
+        <button onclick="selectModel('codellama:7b')">Codellama</button>
+    </div>
+
+    <div id="welcome-message">
+        <p>Thank you for visiting!</p>
+        <p>Check out my YouTube channel: <a href="http://www.youtube.com/@Engomonster" target="_blank">www.youtube.com/@Engomonster</a></p>
+        <p>Also, visit <a href="http://www.bunkerdox.com" target="_blank">www.bunkerdox.com</a>, the embeddings marketplace of the future.</p>
+        <p>My linkedin www.linkedin.com/in/eoin-tolster-2290b6221</p>
+        <p>Knowledgebase and document management evolved. BUNKERDOX transforms your documents into vector databases, enabling rapid content interrogation via direct search or chat. Use your large language model with your documents and know the results you see is the content you have.</p>
+    </div>
+
+    <div id="messages"></div>
+    <div id="input-area">
+        <input type="text" id="input" placeholder="Type a message..." oninput="resetTyping()">
+        <button id="send">Send</button>
+    </div>
+
+    <script>
+        // JavaScript code for handling the chat interface
+
+        const messages = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const sendButton = document.getElementById('send');
+        let currentModel = 'tinyllama:latest'; // Default model
+        let conversationHistory = [];
+        let messageReceived = false;
+
+        function resetTyping() {
+            if(messageReceived) {
+                messageReceived = false; // Reset the flag
+            }
+        }
+
+        function hideWelcomeMessage() {
+            var welcomeMessage = document.getElementById('welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.style.opacity = '0';
+                welcomeMessage.addEventListener('transitionend', function() {
+                    if(welcomeMessage.parentNode) {
+                        welcomeMessage.parentNode.removeChild(welcomeMessage);
+                    }
+                });
+                messageReceived = true;
+            }
+        }
+
+        function handleServerResponse(responseText) {
+            // Handle server response
+            updateMessages(responseText, false);
+        }
+
+        function updateMessages(text, isUser = true) {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = isUser ? `You: ${text}` : `${text}`;
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function selectModel(model) {
+            currentModel = model;
+            updateMessages(`Model switched to ${model}`, false);
+            conversationHistory = [];
+        }
+
+        function sendMessage() {
+            const prompt = input.value.trim();
+            input.value = '';
+
+            hideWelcomeMessage();
+
+            conversationHistory.push(`You: ${prompt}`);
+            const fullPrompt = conversationHistory.join("\n");
+
+            const data = {
+                model: currentModel,
+                prompt: fullPrompt,
+                stream: false
+            };
+
+            fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => handleServerResponse(data.response))
+            .catch(handleError);
+
+            updateMessages(prompt);
+        }
+
+        function handleError(error) {
+            console.error("Fetch error:", error);
+            updateMessages("Error: " + error.message, false);
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+    </script>
+</body>
+</html>
